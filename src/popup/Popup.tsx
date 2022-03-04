@@ -4,6 +4,12 @@ import { browser } from 'webextension-polyfill-ts';
 import classNames from 'classnames';
 import React, { useEffect, useMemo, useState } from 'react';
 
+const addDays = (date: Date, days: number) => {
+  const newDate = new Date(date.valueOf());
+  newDate.setDate(newDate.getDate() + days);
+  return newDate;
+};
+
 export default function Popup() {
   const [authtoken, setAuthtoken] = React.useState(
     localStorage.getItem('authtoken') ?? '',
@@ -17,7 +23,32 @@ export default function Popup() {
         async ({ dateRange }: { dateRange: string }) => {
           const start = new Date(dateRange.split('-')[0].trim());
           const records = await getUpdates(start.getTime() / 1000, authtoken);
-          const timesheet = getHoursPerDay(records, start);
+          let timesheet: Record<number, Record<string, number>>;
+          switch (fillType) {
+            case 'today':
+              timesheet = getHoursPerDay(
+                records,
+                addDays(start, new Date().getDay()),
+                1,
+              );
+              return;
+            case 'yesterday':
+              timesheet = getHoursPerDay(
+                records,
+                addDays(start, (new Date().getDay() - 1) % 7),
+                1,
+              );
+              return;
+            case 'all':
+              timesheet = getHoursPerDay(records, start);
+              return;
+            default:
+              timesheet = getHoursPerDay(
+                records,
+                addDays(start, Number.parseInt(fillType)),
+                1,
+              );
+          }
           return timesheet;
         },
       );
@@ -34,16 +65,24 @@ export default function Popup() {
     const query = { active: true, lastFocusedWindow: true };
     browser.tabs.query(query).then((tabs) => {
       let url = tabs[0].url;
-      setEnabled(url?.includes('https://rally1.rallydev.com/') ?? false);
+      setEnabled(url?.includes('ally') ?? false);
     });
   }, []);
 
+  const tokenValid = authtoken.length > 0;
   const onTokenChange: React.ChangeEventHandler<HTMLInputElement> = (v) => {
     setAuthtoken(v.target.value);
     localStorage.setItem('authtoken', v.target.value);
   };
 
-  const tokenValid = authtoken.length > 0;
+  const [fillType, setFillTypeState] = useState(
+    localStorage.getItem('fill-type') ?? 'all',
+  );
+  const setFillType = (type: string) => {
+    setFillTypeState(type);
+    localStorage.setItem('fill-type', type);
+  };
+
   return (
     <div className="w-64 bg-white">
       <form className="p-4 w-full h-full">
@@ -85,11 +124,17 @@ export default function Popup() {
             <select
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700  leading-tight focus:outline-none focus:shadow-outline"
               id="type"
-              defaultValue="all"
+              value={fillType}
+              onChange={(e) => setFillType(e.target.value)}
             >
               <option value="all">All</option>
               <option value="today">Today</option>
               <option value="yesterday">Yesterday</option>
+              <option value="5">Friday</option>
+              <option value="4">Thursday</option>
+              <option value="3">Wednesday</option>
+              <option value="2">Tuesday</option>
+              <option value="1">Monday</option>
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
               <svg

@@ -4,29 +4,7 @@ function fillInput(el: HTMLInputElement, value: string) {
   el.dispatchEvent(new Event('focus', { bubbles: true }));
   el.value = value;
   el.dispatchEvent(new Event('input', { bubbles: true }));
-  el.dispatchEvent(new Event('blur', { bubbles: true }));
   el.blur();
-}
-
-function fillDays(
-  tag: string,
-  fill: Record<number, Record<string, number>>,
-  cellsArr: (string | null)[],
-  cells: HTMLCollectionOf<Element>,
-) {
-  for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
-    const hours = fill[dayOfWeek]?.[tag];
-    if (hours) {
-      const rounded = Math.round((hours + 0.1 - Number.EPSILON) * 100) / 100;
-      cellsArr[dayOfWeek + 5] = `${rounded}`;
-      const el = cells[dayOfWeek + 5] as HTMLElement;
-      el.click();
-      const editor = cells[dayOfWeek + 5].getElementsByClassName(
-        'smb-TextInput-input',
-      )[0] as HTMLInputElement;
-      fillInput(editor, `${rounded}`);
-    }
-  }
 }
 
 (() => {
@@ -42,25 +20,43 @@ function fillDays(
     .then(async (fill: Record<number, Record<string, number>>) => {
       await new Promise((res) => setTimeout(() => res(0), 500));
       console.log(fill);
-      const rowsArr = [];
       for (let i = 0; i < rows.length; i++) {
-        const cellsArr = [];
         const cells = rows[i].getElementsByClassName('smb-TableCell');
-        for (let j = 0; j < cells.length; j++) {
-          cellsArr.push(cells[j].textContent);
-        }
-        if (cellsArr[2]?.toLowerCase()?.startsWith('ta')) {
-          const task = cellsArr[2].toLowerCase().split(':')[0];
 
-          fillDays(`#${task}`, fill, cellsArr, cells);
+        const fillWeek = (tag: string) => {
+          for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+            const hours = fill[dayOfWeek]?.[tag];
+            if (hours) {
+              const roundingFactor = 100;
+              const rounded =
+                Math.round((hours + Number.EPSILON) * roundingFactor) /
+                roundingFactor;
+              const el = cells[dayOfWeek + 5] as HTMLElement;
+              el.click();
+              const editor = cells[dayOfWeek + 5].getElementsByClassName(
+                'smb-TextInput-input',
+              )[0] as HTMLInputElement;
+              fillInput(editor, `${rounded}`);
+            }
+          }
+        };
+
+        const project = cells[0]?.textContent;
+        const taskDesc = cells[2]?.textContent?.toLowerCase();
+        if (taskDesc?.startsWith('ta')) {
+          const task = taskDesc.split(':')[0];
+          fillWeek(`#${task}`);
+        } else if (project?.startsWith('.')) {
+          if (project.startsWith('.Conferences')) {
+            fillWeek('#events');
+          }
+          if (project.startsWith('.Employee')) {
+            fillWeek('#personal');
+          }
+          if (project.startsWith('.Scrum')) {
+            fillWeek('#scrum');
+          }
         }
-        if (cellsArr[0]?.toLowerCase()?.startsWith('.Scrum Ceremonies')) {
-          fillDays(`#scrum`, fill, cellsArr, cells);
-        }
-        if (cellsArr[0]?.toLowerCase()?.startsWith('.Conferences & Events')) {
-          fillDays(`#events`, fill, cellsArr, cells);
-        }
-        rowsArr.push(cellsArr);
       }
     });
 })();

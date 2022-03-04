@@ -13,6 +13,8 @@ export function getHoursPerDay(records: RecordDto[], since: Date, days = 7) {
   const end = new Date(start);
   end.setDate(start.getDate() + days);
 
+  console.log(start, end);
+
   const filteredRecords = records.filter(
     (r) => r.t1 >= start.getTime() / 1000 && r.t2 < end.getTime() / 1000,
   );
